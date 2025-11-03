@@ -1,0 +1,35 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:latest
+    container_name: jenkins
+    ports:
+      - "8080:8080"      # Jenkins UI
+      - "50000:50000"    # JNLP 에이전트
+    volumes:
+      - ./jenkins_home:/var/jenkins_home
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
+    restart: unless-stopped
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qa-tests
+    # one-shot: 테스트 끝나면 종료 (성공=0, 실패!=0)
+    restart: "no"
+
+  app:
+    image: python:3.10-alpine
+    container_name: app
+    working_dir: /app
+    volumes:
+      - .:/app:rw
+    command: ["python", "app.py"]
+    # tests가 "성공적으로 종료"해야 app 시작
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+    # app은 재시작 필요시만
+    restart: unless-stopped
+
